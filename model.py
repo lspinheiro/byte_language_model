@@ -30,7 +30,7 @@ def preprocess(text, front_pad='\n ', end_pad=' '):
 
 class CharRNN:
     
-    def __init__(self, vocab_size, embed_dim, batch_size, n_steps=128,n_hidden=4096, n_states=2, clip_val=40):
+    def __init__(self, vocab_size, embed_dim, batch_size, n_steps=128,n_hidden=1024, n_states=2, clip_val=40):
         
         #nsteps?
         
@@ -141,15 +141,3 @@ def dynamic_batching(full_batch_sequences, n_steps):
         
         yield input_sequences
        
-
-    
-if __name__ == '__main__':
-    nhidden=8
-    nsteps=3      
-    
-    xs = ['demo!', 'arriba', 'i dont know']
-    
-    for b in dynamic_batching(xs, 3):
-        print(b.shape)
-        print(b)
-    

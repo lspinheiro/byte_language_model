@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
+import numpy as np
+
+from tensorflow.contrib.rnn import RNNCell
 
 def orthogonal_initializer(scale=1.0):
     def _initializer(shape, dtype=tf.float32):
@@ -60,9 +63,8 @@ class MultiplicativeLSTMCell(RNNCell):
         
         (c_prev, h_prev) = state
 
-
-        dtype = inputs.dtype
-        input_size = inputs.get_shape().with_rank(2)[1]
+        #dtype = inputs.dtype
+        #input_size = inputs.get_shape().with_rank(2)[1]
 
         with tf.variable_scope(scope or type(self).__name__):
             
