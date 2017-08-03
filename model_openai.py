@@ -1,34 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-Created on Tue Aug  1 19:26:47 2017
+Created on Thu Aug  3 16:50:32 2017
 
-@author: Leonardo
+@author: Leonardo Pinheiro
 """
 
 import tensorflow as tf
-import numpy as np
-import html
 
-from mlstm import MultiplicativeLSTMCell
-
-def batch_pad(xs, nbatch, nsteps):
-    xmb = np.zeros((nbatch, nsteps), dtype=np.int32)
-    mmb = np.ones((nbatch, nsteps, 1), dtype=np.float32)
-    for i, x in enumerate(xs):
-        l = len(x)
-        npad = nsteps-l
-        xmb[i, -l:] = list(x)
-        mmb[i, :npad] = 0
-    return xmb, mmb
-
-def preprocess(text, front_pad='\n ', end_pad=' '):
-    text = html.unescape(text)
-    text = text.replace('\n', ' ').strip()
-    text = front_pad+text+end_pad
-    text = text.encode()
-    return text
-
-class CharRNN:
+class CharRNNOpenAI:
     
     def __init__(self, vocab_size, embed_dim, batch_size, n_steps=128,n_hidden=1024, n_states=2, clip_val=40):
         
@@ -36,7 +15,7 @@ class CharRNN:
         
         #M = tf.placeholder(tf.float32, [None, n_steps, 1])
         #S = tf.placeholder(tf.float32, [n_states, None, n_hidden])
-        self.input_text, self.targets, self.learning_rate = self.get_inputs(batch_size, n_steps)
+        self.input_text, self.targets, self.state_var, self.learning_rate = self.get_inputs(n_steps, n_hidden)
         self.embedding = self.embed_layer(self.input_text, vocab_size, embed_dim)
         
         self.rnn_cell, self.init_state = self.get_init_cell(batch_size, n_hidden)
@@ -46,15 +25,16 @@ class CharRNN:
         self.train_op = self.optimizer(self.learning_rate, self.cost, clip_val)
         
             
-    def get_inputs(self, batch_size, n_steps):
+    def get_inputs(self, n_steps, n_hidden):
         
         with tf.variable_scope('inputs'):
             
-            input_text = tf.placeholder(tf.int32, [batch_size, n_steps]) #TODO
-            targets = tf.placeholder(dtype=tf.int32, shape=[batch_size, n_steps], name='target')
+            input_text = tf.placeholder(tf.int32, [None, n_steps]) #TODO
+            targets = tf.placeholder(dtype=tf.int32, shape=[None, n_steps], name='target')
+            state = tf.placeholder(tf.float32, [n_states, None, n_hidden])
             learning_rate = tf.placeholder(dtype=tf.float32, shape=None, name='learning_rate')
             
-            return input_text, targets, learning_rate
+            return input_text, targets, state, learning_rate
         
     def embed_layer(self, input_text, vocab_size, embed_dim):
         
@@ -65,6 +45,14 @@ class CharRNN:
             embeddings =  tf.nn.embedding_lookup(embedding_lookup_matrix, input_text)
         return embeddings
     
+    def mLSTM(self, input_text, state_var, n_hidden, n_steps):
+        
+        inputs = tf.unstack(input_text, n_steps, 1)
+        vocab_size = inputs[0].get_shape()[1].value
+        
+        
+    
+    '''
     def get_init_cell(self, batch_size, lstm_size):
         
         cell = tf.contrib.rnn.MultiRNNCell(
@@ -81,6 +69,7 @@ class CharRNN:
         final_state = tf.identity(state, name='final_state')
         
         return outputs, final_state
+    '''
     
     def final_fully_connected_layer(self, rnn_output, vocab_size):
         
@@ -111,34 +100,3 @@ class CharRNN:
         
         train_op = optimizer.apply_gradients(list(zip(grads, trainables)))
         return train_op
-            
-            
-
-def dynamic_batching(full_batch_sequences, n_steps):
-    
-    full_batch_sequences = [preprocess(sequence) for sequence in full_batch_sequences] 
-    sizes = np.asarray([len(sequence) for sequence in full_batch_sequences])
-    
-    sorted_idxs = np.argsort(sizes)
-    #unsort_idxs = np.argsort(sorted_idxs)
-    sorted_full_batch_sequences = [full_batch_sequences[i] for i in sorted_idxs]
-    
-    max_seq_size = np.max(sizes)
-    num_seq_offset = 0
-    step_ceil = int(np.ceil(max_seq_size / n_steps) * n_steps)
-    
-    for step in range(0, step_ceil, n_steps):
-        
-        start = step
-        end = step + n_steps
-        batch_subsequences = [x[start:end] for x in sorted_full_batch_sequences]
-        num_seq_done = sum([x == b'' for x in batch_subsequences])
-        num_seq_offset += num_seq_done
-        batch_subsequences = batch_subsequences[num_seq_done:]
-        sorted_full_batch_sequences = sorted_full_batch_sequences[num_seq_done:]
-        batch_size = len(batch_subsequences)
-        
-        input_sequences, _ = batch_pad(batch_subsequences, batch_size, n_steps)
-        
-        yield input_sequences
-       
